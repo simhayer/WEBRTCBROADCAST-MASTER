@@ -39,7 +39,7 @@ async function watch(e) {
 }
 // -----------------------------------------------------------------------------
 async function showList() {
-  const data = await axios.get(Config.host + "/list-broadcast");
+  const data = await axios.get("/list-broadcast");
   var html = `<ul style="list-style-type: none;">`;
   data.data.forEach((e) => {
     console.log(e);
@@ -158,7 +158,7 @@ function iceCandidate() {
 
 // -----------------------------------------------------------------------------
 
-var socket = io(Config.host);
+var socket = io(Config.host + ":" + Config.port);
 var socket_id;
 
 socket.on("from-server", function (_socket_id) {

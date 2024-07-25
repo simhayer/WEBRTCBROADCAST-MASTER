@@ -61,8 +61,7 @@ async function handleNegotiationNeededEvent(peer) {
 
   console.log("Send socket id: " + socket_id);
 
-  //const { data } = await axios.post("/broadcast", payload);
-  const { data } = await axios.post(Config.host + "/broadcast", payload);
+  const { data } = await axios.post("/broadcast", payload);
   console.log(data.message);
   const desc = new RTCSessionDescription(data.data.sdp);
   broadcast_id = data.data.id;
@@ -119,7 +118,7 @@ function iceCandidate() {
 
 // -----------------------------------------------------------------------------
 
-var socket = io(Config.host);
+var socket = io(Config.host + ":" + Config.port);
 var socket_id;
 
 socket.on("from-server", function (_socket_id) {
