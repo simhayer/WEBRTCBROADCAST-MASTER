@@ -9,43 +9,53 @@ class Consumer {
     _id = null,
     _peer = new webrtc.RTCPeerConnection(),
     _socket_id = null,
-    broadcast_id = null
+    _broadcast_id = null
   ) {
     this.id = _id;
     this.peer = _peer;
-    (this.socket_id = _socket_id), (this.broadcast_id = broadcast_id);
+    this.socket_id = _socket_id;
+    this.broadcast_id = _broadcast_id;
   }
 }
 
 async function addConsumer(socket_id, broadcast_id, sdp) {
-  const response = await fetch(
-    "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-  );
+  try {
+    const fetch = (await import("node-fetch")).default;
+    const response = await fetch(
+      "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
+    );
 
-  // Saving the response in the iceServers array
-  const iceServers = await response.json();
-  var id = uuidv4();
-  var consumer = new Consumer(
-    id,
-    new webrtc.RTCPeerConnection(iceServers, config.offerSdpConstraints),
-    socket_id,
-    broadcast_id
-  );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
+    }
 
-  consumers[id] = consumer;
+    const iceServers = await response.json();
+    const id = uuidv4();
+    const consumer = new Consumer(
+      id,
+      new webrtc.RTCPeerConnection(
+        { iceServers: iceServers.iceServers },
+        config.offerSdpConstraints
+      ),
+      socket_id,
+      broadcast_id
+    );
 
-  consumerOnIceCandidate(id);
+    consumers[id] = consumer;
 
-  consumerConnectionState(id);
+    consumerOnIceCandidate(id);
+    consumerConnectionState(id);
+    await sdpProcess(id, broadcast_id, sdp);
 
-  await sdpProcess(id, broadcast_id, sdp);
-
-  return id;
+    return id;
+  } catch (error) {
+    console.error("Error during addConsumer:", error);
+  }
 }
 
 async function sdpProcess(id, broadcast_id, sdp) {
   try {
-    var desc = new webrtc.RTCSessionDescription(sdp);
+    const desc = new webrtc.RTCSessionDescription(sdp);
     await consumers[id].peer.setRemoteDescription(desc);
 
     broadcasters[broadcast_id].stream
@@ -58,8 +68,8 @@ async function sdpProcess(id, broadcast_id, sdp) {
       offerToReceiveVideo: 1,
     });
     await consumers[id].peer.setLocalDescription(answer);
-  } catch (e) {
-    console.log(e);
+  } catch (error) {
+    console.log(error);
   }
 }
 
@@ -84,8 +94,8 @@ async function consumerConnectionState(id) {
           );
         }
       }
-    } catch (e) {
-      console.log(e);
+    } catch (error) {
+      console.log(error);
     }
   };
 }
@@ -94,18 +104,18 @@ async function consumerOnIceCandidate(id) {
   try {
     consumers[id].peer.onicecandidate = (e) => {
       if (!e || !e.candidate) return;
-      var candidate = {
+      const candidate = {
         candidate: String(e.candidate.candidate),
         sdpMid: String(e.candidate.sdpMid),
         sdpMLineIndex: e.candidate.sdpMLineIndex,
       };
-      // console.log(candidate)
       socketFunction.sendCandidateToClient(consumers[id].socket_id, candidate);
     };
-  } catch (e) {
-    console.log(e);
+  } catch (error) {
+    console.log(error);
   }
 }
+
 async function addCandidateFromClient(data) {
   if (consumers[data["id"]] != null) {
     consumers[data["id"]].peer.addIceCandidate(

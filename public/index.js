@@ -26,19 +26,12 @@
 //   ],
 // };
 
-const response = await fetch(
-  "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-);
-
-// Saving the response in the iceServers array
-const iceServers = await response.json();
+const apiKey = "435f246f87361e4cd9a03f0224e9f2cef837";
+const iceServersUrl = `https://wobble.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
 
 const offerSdpConstraints = {
-  mandatory: {
-    OfferToReceiveAudio: true,
-    OfferToReceiveVideo: true,
-  },
-  optional: [],
+  offerToReceiveAudio: true,
+  offerToReceiveVideo: true,
 };
 
 const mediaConstraints = {
@@ -46,9 +39,11 @@ const mediaConstraints = {
   audio: false,
 };
 
-var broadcast_id;
-var localCandidates = [];
-var remoteCandidates = [];
+let broadcast_id;
+let localCandidates = [];
+let remoteCandidates = [];
+let peer;
+let socket_id;
 
 window.onload = () => {
   document.getElementById("my-button").onclick = () => {
@@ -56,63 +51,82 @@ window.onload = () => {
   };
 };
 
-var peer;
 async function init() {
-  const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-  document.getElementById("video").srcObject = stream;
-  peer = await createPeer();
-  stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+  try {
+    const response = await fetch(iceServersUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
+    }
+    const iceServers = await response.json();
+
+    const configurationPeerConnection = {
+      iceServers: iceServers.iceServers,
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+    document.getElementById("video").srcObject = stream;
+    peer = await createPeer(configurationPeerConnection);
+    stream.getTracks().forEach((track) => peer.addTrack(track, stream));
+  } catch (error) {
+    console.error("Error during initialization:", error);
+  }
 }
 
-async function createPeer() {
-  peer = new RTCPeerConnection(
-    configurationPeerConnection,
-    offerSdpConstraints
-  );
-  localCandidates = [];
-  remoteCandidates = [];
-  iceCandidate();
-  peer.onnegotiationneeded = async () =>
-    await handleNegotiationNeededEvent(peer);
-  return peer;
+async function createPeer(configurationPeerConnection) {
+  try {
+    peer = new RTCPeerConnection(configurationPeerConnection);
+    localCandidates = [];
+    remoteCandidates = [];
+    iceCandidate();
+    peer.onnegotiationneeded = async () =>
+      await handleNegotiationNeededEvent(peer);
+    return peer;
+  } catch (error) {
+    console.error("Error creating peer connection:", error);
+  }
 }
 
 async function handleNegotiationNeededEvent(peer) {
-  const offer = await peer.createOffer({ offerToReceiveVideo: 1 });
-  await peer.setLocalDescription(offer);
+  try {
+    const offer = await peer.createOffer(offerSdpConstraints);
+    await peer.setLocalDescription(offer);
 
-  const payload = {
-    sdp: peer.localDescription,
-    socket_id: socket_id,
-  };
+    const payload = {
+      sdp: peer.localDescription,
+      socket_id: socket_id,
+    };
 
-  console.log("Send socket id: " + socket_id);
+    console.log("Send socket id:", socket_id);
 
-  const { data } = await axios.post("/broadcast", payload);
-  console.log(data.message);
-  const desc = new RTCSessionDescription(data.data.sdp);
-  broadcast_id = data.data.id;
-  document.getElementById("text-container").innerHTML =
-    "Streaming id: " + broadcast_id;
-  await peer.setRemoteDescription(desc).catch((e) => console.log(e));
-  // add local candidate to server
-  localCandidates.forEach((e) => {
-    socket.emit("add-candidate-broadcast", {
-      id: broadcast_id,
-      candidate: e,
+    const { data } = await axios.post("/broadcast", payload);
+    console.log(data.message);
+    const desc = new RTCSessionDescription(data.data.sdp);
+    broadcast_id = data.data.id;
+    document.getElementById("text-container").innerHTML =
+      "Streaming id: " + broadcast_id;
+    await peer.setRemoteDescription(desc).catch((e) => console.log(e));
+
+    // add local candidate to server
+    localCandidates.forEach((e) => {
+      socket.emit("add-candidate-broadcast", {
+        id: broadcast_id,
+        candidate: e,
+      });
     });
-  });
-  // add remote candidate to local
-  remoteCandidates.forEach((e) => {
-    peer.addIceCandidate(new RTCIceCandidate(e));
-  });
+
+    // add remote candidate to local
+    remoteCandidates.forEach((e) => {
+      peer.addIceCandidate(new RTCIceCandidate(e));
+    });
+  } catch (error) {
+    console.error("Error handling negotiation needed event:", error);
+  }
 }
 
 function iceCandidate() {
   peer.onicecandidate = (e) => {
     if (!e || !e.candidate) return;
-    // console.log(e)
-    var candidate = {
+    const candidate = {
       candidate: String(e.candidate.candidate),
       sdpMid: String(e.candidate.sdpMid),
       sdpMLineIndex: e.candidate.sdpMLineIndex,
@@ -121,36 +135,34 @@ function iceCandidate() {
   };
 
   peer.onconnectionstatechange = (e) => {
-    console.log("status");
-    console.log(e);
+    console.log("Connection state change:", e);
   };
+
   peer.onicecandidateerror = (e) => {
-    console.log("error1");
-    console.log(e);
+    console.error("ICE candidate error:", e);
   };
 
   peer.oniceconnectionstatechange = (e) => {
     try {
       const connectionStatus = peer.connectionState;
       if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
-        console.log("disconnected");
+        console.log("Connection state:", connectionStatus);
       } else {
-        console.log(" connected");
+        console.log("Connection state:", connectionStatus);
       }
     } catch (e) {
-      console.log(e);
+      console.error("Error during ICE connection state change:", e);
     }
   };
 }
 
 // -----------------------------------------------------------------------------
 
-var socket = io(Config.host + ":" + Config.port);
-var socket_id;
+const socket = io(Config.host + ":" + Config.port);
 
 socket.on("from-server", function (_socket_id) {
   socket_id = _socket_id;
-  console.log("me connected: " + socket_id);
+  console.log("Connected with socket id:", socket_id);
 });
 
 socket.on("candidate-from-server", (data) => {

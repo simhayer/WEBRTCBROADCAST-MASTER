@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 const config = require("../config");
 const { broadcasters } = require("../Data/data");
 const socketFunction = require("../Socket/socketFunction");
+//const fetch = require("node-fetch");
 
 class Broadcaster {
   constructor(
@@ -19,40 +20,41 @@ class Broadcaster {
   }
 }
 
-// const response = await fetch(
-//   "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-// );
-
-// // Saving the response in the iceServers array
-// const iceServers = await response.json();
-
 async function addBroadcast(socket_id, sdp) {
-  const response = await fetch(
-    "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-  );
+  try {
+    const fetch = (await import("node-fetch")).default;
+    const response = await fetch(
+      "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
+    );
 
-  // Saving the response in the iceServers array
-  const iceServers = await response.json();
-  console.log("new broadcast");
-  var id = uuidv4();
-  var broadcast = new Broadcaster(
-    id,
-    new MediaStream(),
-    new webrtc.RTCPeerConnection(iceServers, config.offerSdpConstraints),
-    socket_id
-  );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
+    }
 
-  broadcasters[id] = broadcast;
+    const iceServers = await response.json();
+    console.log("new broadcast");
+    const id = uuidv4();
+    const broadcast = new Broadcaster(
+      id,
+      new MediaStream(),
+      new webrtc.RTCPeerConnection(
+        { iceServers: iceServers.iceServers },
+        config.offerSdpConstraints
+      ),
+      socket_id
+    );
 
-  broadcastMediaProcess(id);
+    broadcasters[id] = broadcast;
 
-  broadcastConnectionState(id);
+    broadcastMediaProcess(id);
+    broadcastConnectionState(id);
+    broadcastOnIceCandidate(id);
+    await broadcastSdpProcess(id, sdp);
 
-  broadcastOnIceCandidate(id);
-
-  await broadcastSdpProcess(id, sdp);
-
-  return id;
+    return id;
+  } catch (error) {
+    console.error("Error during addBroadcast:", error);
+  }
 }
 
 async function broadcastMediaProcess(id) {
@@ -63,6 +65,7 @@ async function broadcastMediaProcess(id) {
     console.log(e);
   }
 }
+
 async function broadcastConnectionState(id) {
   broadcasters[id].peer.oniceconnectionstatechange = (e) => {
     try {
@@ -94,12 +97,11 @@ async function broadcastOnIceCandidate(id) {
   try {
     broadcasters[id].peer.onicecandidate = (e) => {
       if (!e || !e.candidate) return;
-      var candidate = {
+      const candidate = {
         candidate: String(e.candidate.candidate),
         sdpMid: String(e.candidate.sdpMid),
         sdpMLineIndex: e.candidate.sdpMLineIndex,
       };
-      // console.log(candidate)
       socketFunction.sendCandidateToClient(
         broadcasters[id].socket_id,
         candidate
@@ -139,9 +141,9 @@ async function removeBroadcast(id) {
   }
 }
 
-function fetch() {
-  var data = [];
-  for (var bs in broadcasters) {
+function fetchBroadcasters() {
+  const data = [];
+  for (const bs in broadcasters) {
     data.push(bs);
   }
   return data;
@@ -150,5 +152,5 @@ function fetch() {
 module.exports = {
   addBroadcast,
   addCandidateFromClient,
-  fetch,
+  fetch: fetchBroadcasters,
 };
