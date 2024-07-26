@@ -1,30 +1,40 @@
-// const configurationPeerConnection = {
-//   iceServers: [
-//     {
-//       urls: "stun:stun.relay.metered.ca:80",
-//     },
-//     {
-//       urls: "turn:global.relay.metered.ca:80",
-//       username: "aca60fb4568ea274f8245009",
-//       credential: "Zi/jzkiJuI2fmwLx",
-//     },
-//     {
-//       urls: "turn:global.relay.metered.ca:80?transport=tcp",
-//       username: "aca60fb4568ea274f8245009",
-//       credential: "Zi/jzkiJuI2fmwLx",
-//     },
-//     {
-//       urls: "turn:global.relay.metered.ca:443",
-//       username: "aca60fb4568ea274f8245009",
-//       credential: "Zi/jzkiJuI2fmwLx",
-//     },
-//     {
-//       urls: "turns:global.relay.metered.ca:443?transport=tcp",
-//       username: "aca60fb4568ea274f8245009",
-//       credential: "Zi/jzkiJuI2fmwLx",
-//     },
-//   ],
-// };
+const configurationPeerConnection = {
+  iceServers: [
+    {
+      urls: "stun:147.182.214.128:3478",
+    },
+    {
+      urls: "stun:147.182.214.128:3478",
+      username: "user1",
+      credential: "key1",
+    },
+  ],
+  // iceServers: [
+  //   {
+  //     urls: "stun:stun.relay.metered.ca:80",
+  //   },
+  //   {
+  //     urls: "turn:global.relay.metered.ca:80",
+  //     username: "aca60fb4568ea274f8245009",
+  //     credential: "Zi/jzkiJuI2fmwLx",
+  //   },
+  //   {
+  //     urls: "turn:global.relay.metered.ca:80?transport=tcp",
+  //     username: "aca60fb4568ea274f8245009",
+  //     credential: "Zi/jzkiJuI2fmwLx",
+  //   },
+  //   {
+  //     urls: "turn:global.relay.metered.ca:443",
+  //     username: "aca60fb4568ea274f8245009",
+  //     credential: "Zi/jzkiJuI2fmwLx",
+  //   },
+  //   {
+  //     urls: "turns:global.relay.metered.ca:443?transport=tcp",
+  //     username: "aca60fb4568ea274f8245009",
+  //     credential: "Zi/jzkiJuI2fmwLx",
+  //   },
+  //],
+};
 
 const apiKey = "435f246f87361e4cd9a03f0224e9f2cef837";
 const iceServersUrl = `https://wobble.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`;
@@ -53,14 +63,14 @@ window.onload = () => {
 
 async function init() {
   try {
-    const response = await fetch(iceServersUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
-    }
-    const iceServers = await response.json();
-
+    // const response = await fetch(iceServersUrl);
+    // if (!response.ok) {
+    //   throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
+    // }
+    // const iceServers = await response.json();
+    console.log("heree");
     const configurationPeerConnection = {
-      iceServers: iceServers.iceServers,
+      iceServers: configurationPeerConnection,
     };
 
     const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);

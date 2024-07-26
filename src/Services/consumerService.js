@@ -20,21 +20,11 @@ class Consumer {
 
 async function addConsumer(socket_id, broadcast_id, sdp) {
   try {
-    const fetch = (await import("node-fetch")).default;
-    const response = await fetch(
-      "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
-    }
-
-    const iceServers = await response.json();
     const id = uuidv4();
     const consumer = new Consumer(
       id,
       new webrtc.RTCPeerConnection(
-        { iceServers: iceServers.iceServers },
+        { iceServers: config.configurationPeerConnection },
         config.offerSdpConstraints
       ),
       socket_id,
