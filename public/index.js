@@ -9,31 +9,6 @@ const configurationPeerConnection = {
       credential: "key1",
     },
   ],
-  // iceServers: [
-  //   {
-  //     urls: "stun:stun.relay.metered.ca:80",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:80",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:80?transport=tcp",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:443",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turns:global.relay.metered.ca:443?transport=tcp",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //],
 };
 
 const apiKey = "435f246f87361e4cd9a03f0224e9f2cef837";
@@ -63,31 +38,36 @@ window.onload = () => {
 
 async function init() {
   try {
+    // Uncomment this part if you need to fetch ICE servers dynamically
     // const response = await fetch(iceServersUrl);
     // if (!response.ok) {
     //   throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
     // }
     // const iceServers = await response.json();
-    console.log("heree");
-    const configurationPeerConnection = {
-      iceServers: configurationPeerConnection,
+    // const configurationPeerConnection = {
+    //   iceServers: iceServers.iceServers,
+    // };
+
+    console.log("Initializing...");
+    const configuration = {
+      iceServers: configurationPeerConnection.iceServers,
     };
 
     const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
     document.getElementById("video").srcObject = stream;
-    peer = await createPeer(configurationPeerConnection);
+    peer = await createPeer(configuration);
     stream.getTracks().forEach((track) => peer.addTrack(track, stream));
   } catch (error) {
     console.error("Error during initialization:", error);
   }
 }
 
-async function createPeer(configurationPeerConnection) {
+async function createPeer(configuration) {
   try {
-    peer = new RTCPeerConnection(configurationPeerConnection);
+    peer = new RTCPeerConnection(configuration);
     localCandidates = [];
     remoteCandidates = [];
-    iceCandidate();
+    setupIceCandidateHandlers();
     peer.onnegotiationneeded = async () =>
       await handleNegotiationNeededEvent(peer);
     return peer;
@@ -133,7 +113,7 @@ async function handleNegotiationNeededEvent(peer) {
   }
 }
 
-function iceCandidate() {
+function setupIceCandidateHandlers() {
   peer.onicecandidate = (e) => {
     if (!e || !e.candidate) return;
     const candidate = {

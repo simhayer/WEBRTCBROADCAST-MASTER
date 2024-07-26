@@ -28,7 +28,7 @@ async function addBroadcast(socket_id, sdp) {
       id,
       new MediaStream(),
       new webrtc.RTCPeerConnection(
-        { iceServers: config.configurationPeerConnection },
+        { iceServers: config.configurationPeerConnection.iceServers },
         config.offerSdpConstraints
       ),
       socket_id

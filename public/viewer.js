@@ -9,6 +9,7 @@ const configurationPeerConnection = {
       credential: "key1",
     },
   ],
+  // Uncomment and replace the above with the following if using dynamic ICE servers
   // iceServers: [
   //   {
   //     urls: "stun:stun.relay.metered.ca:80",
@@ -33,40 +34,41 @@ const configurationPeerConnection = {
   //     username: "aca60fb4568ea274f8245009",
   //     credential: "Zi/jzkiJuI2fmwLx",
   //   },
-  //],
+  // ],
 };
 
-const response = await fetch(
-  "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
-);
-
-// Saving the response in the iceServers array
-const iceServers = await response.json();
+async function fetchIceServers() {
+  try {
+    const response = await fetch(
+      "https://wobble.metered.live/api/v1/turn/credentials?apiKey=435f246f87361e4cd9a03f0224e9f2cef837"
+    );
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ICE servers: ${response.statusText}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching ICE servers:", error);
+    return configurationPeerConnection.iceServers; // Fallback to static configuration
+  }
+}
 
 const offerSdpConstraints = {
-  mandatory: {
-    OfferToReceiveAudio: true,
-    OfferToReceiveVideo: true,
-  },
-  optional: [],
+  offerToReceiveAudio: true,
+  offerToReceiveVideo: true,
 };
 
-// "video", { direction: "recvonly" } | recvonly-> recieve only
-// "video", { direction: "sendrecv" } | sendrecv-> send only
-// {send: bool, receive: bool}
-//{ direction: "sendrecv" }
-// { direction: "recvonly" }
 const addTransceiverConstraints = { direction: "recvonly" };
 
 window.onload = () => {
   showList();
 };
 
-var peer;
-var broadcast_id = "";
-var consumer_id = "";
-var localCandidates = [];
-var remoteCandidates = [];
+let peer;
+let broadcast_id = "";
+let consumer_id = "";
+let localCandidates = [];
+let remoteCandidates = [];
+let socket_id;
 
 async function watch(e) {
   broadcast_id = e.getAttribute("data");
@@ -74,24 +76,14 @@ async function watch(e) {
   document.getElementById("text-container").innerHTML =
     "Streaming on id:" + broadcast_id;
 }
-// -----------------------------------------------------------------------------
+
 async function showList() {
   const data = await axios.get("/list-broadcast");
-  var html = `<ul style="list-style-type: none;">`;
+  let html = `<ul style="list-style-type: none;">`;
   data.data.forEach((e) => {
-    console.log(e);
-    html +=
-      `<li style="margin-top:4px;">
-        <button data='` +
-      e +
-      `' id='view-` +
-      e +
-      `'
-        onClick="watch(this)"
-        >Watch ` +
-      e +
-      `</button>
-        </li>`;
+    html += `<li style="margin-top:4px;">
+        <button data='${e}' id='view-${e}' onClick="watch(this)">Watch ${e}</button>
+      </li>`;
   });
   html += "</ul>";
   document.getElementById("list-container").innerHTML += html;
@@ -100,14 +92,18 @@ async function showList() {
 async function createPeer() {
   localCandidates = [];
   remoteCandidates = [];
+
   if (peer != null && peer != undefined) {
     return handleNegotiationNeededEvent(peer);
   }
 
-  peer = new RTCPeerConnection(
-    configurationPeerConnection,
-    offerSdpConstraints
-  );
+  //const iceServers = await fetchIceServers();
+
+  const configuration = {
+    iceServers: configurationPeerConnection.iceServers,
+  };
+
+  peer = new RTCPeerConnection(configuration);
 
   peer.addTransceiver("video", addTransceiverConstraints);
   peer.addTransceiver("audio", addTransceiverConstraints);
@@ -123,32 +119,38 @@ async function createPeer() {
 }
 
 async function handleNegotiationNeededEvent(peer) {
-  const offer = await peer.createOffer({ offerToReceiveVideo: 1 });
-  await peer.setLocalDescription(offer);
-  const payload = {
-    sdp: peer.localDescription,
-    broadcast_id: broadcast_id,
-    socket_id: socket_id,
-  };
-  const { data } = await axios.post("/consumer", payload);
-  console.log(data.message);
-  consumer_id = data.data.id;
+  try {
+    const offer = await peer.createOffer(offerSdpConstraints);
+    await peer.setLocalDescription(offer);
 
-  const desc = new RTCSessionDescription(data.data.sdp);
+    const payload = {
+      sdp: peer.localDescription,
+      broadcast_id: broadcast_id,
+      socket_id: socket_id,
+    };
 
-  await peer.setRemoteDescription(desc).catch((e) => console.log(e));
+    const { data } = await axios.post("/consumer", payload);
+    console.log(data.message);
+    consumer_id = data.data.id;
 
-  // send local candidate to server
-  localCandidates.forEach((e) => {
-    socket.emit("add-candidate-consumer", {
-      id: consumer_id,
-      candidate: e,
+    const desc = new RTCSessionDescription(data.data.sdp);
+    await peer.setRemoteDescription(desc).catch((e) => console.log(e));
+
+    // send local candidates to the server
+    localCandidates.forEach((e) => {
+      socket.emit("add-candidate-consumer", {
+        id: consumer_id,
+        candidate: e,
+      });
     });
-  });
-  // add remote candidate to local
-  remoteCandidates.forEach((e) => {
-    peer.addIceCandidate(new RTCIceCandidate(e));
-  });
+
+    // add remote candidates to the local peer
+    remoteCandidates.forEach((e) => {
+      peer.addIceCandidate(new RTCIceCandidate(e));
+    });
+  } catch (error) {
+    console.error("Error during negotiation:", error);
+  }
 }
 
 function handleTrackEvent(e) {
@@ -159,8 +161,7 @@ function handleTrackEvent(e) {
 function iceCandidate() {
   peer.onicecandidate = (e) => {
     if (!e || !e.candidate) return;
-    // console.log(e)
-    var candidate = {
+    const candidate = {
       candidate: String(e.candidate.candidate),
       sdpMid: String(e.candidate.sdpMid),
       sdpMLineIndex: e.candidate.sdpMLineIndex,
@@ -169,39 +170,36 @@ function iceCandidate() {
   };
 
   peer.onconnectionstatechange = (e) => {
-    console.log("status");
-    console.log(e);
+    console.log("Connection state change:", e);
   };
+
   peer.onicecandidateerror = (e) => {
-    console.log("error1");
-    console.log(e);
+    console.error("ICE candidate error:", e);
   };
 
   peer.oniceconnectionstatechange = (e) => {
     try {
       const connectionStatus = peer.connectionState;
       if (["disconnected", "failed", "closed"].includes(connectionStatus)) {
-        console.log("disconnected");
+        console.log("Connection state:", connectionStatus);
       } else {
-        console.log(" connected");
+        console.log("Connection state:", connectionStatus);
       }
-    } catch (e) {
-      console.log(e);
+    } catch (error) {
+      console.error("Error during ICE connection state change:", error);
     }
   };
 }
 
 // -----------------------------------------------------------------------------
 
-// -----------------------------------------------------------------------------
-
-var socket = io(Config.host + ":" + Config.port);
-var socket_id;
+const socket = io(Config.host + ":" + Config.port);
 
 socket.on("from-server", function (_socket_id) {
   socket_id = _socket_id;
-  console.log("me connected: " + socket_id);
+  console.log("Connected with socket id:", socket_id);
 });
+
 socket.on("candidate-from-server", (data) => {
   remoteCandidates.push(data);
 });

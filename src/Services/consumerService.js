@@ -24,7 +24,7 @@ async function addConsumer(socket_id, broadcast_id, sdp) {
     const consumer = new Consumer(
       id,
       new webrtc.RTCPeerConnection(
-        { iceServers: config.configurationPeerConnection },
+        { iceServers: config.configurationPeerConnection.iceServers },
         config.offerSdpConstraints
       ),
       socket_id,
