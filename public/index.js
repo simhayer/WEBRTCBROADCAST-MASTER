@@ -4,9 +4,9 @@ const configurationPeerConnection = {
       urls: "stun:147.182.214.128:3478",
     },
     {
-      urls: "stun:147.182.214.128:3478",
-      username: "user1",
-      credential: "key1",
+      urls: "turn:147.182.214.128:3478",
+      username: "testuser",
+      credential: "testpass",
     },
   ],
 };
