@@ -1,12 +1,9 @@
 const configurationPeerConnection = {
   iceServers: [
     {
-      urls: "stun:147.182.214.128:3478",
-    },
-    {
-      urls: "turn:147.182.214.128:3478",
-      username: "testuser",
-      credential: "testpass",
+      urls: "turn:na.relay.metered.ca:80",
+      username: "a9771e697028c08786af0d5e",
+      credential: "YtkNt/ARwHi5hXLZ",
     },
   ],
   // Uncomment and replace the above with the following if using dynamic ICE servers
