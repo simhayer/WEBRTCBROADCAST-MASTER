@@ -1,37 +1,29 @@
 const configurationPeerConnection = {
   iceServers: [
     {
+      urls: "stun:stun.relay.metered.ca:80",
+    },
+    {
       urls: "turn:na.relay.metered.ca:80",
       username: "a9771e697028c08786af0d5e",
       credential: "YtkNt/ARwHi5hXLZ",
     },
+    {
+      urls: "turn:na.relay.metered.ca:80?transport=tcp",
+      username: "a9771e697028c08786af0d5e",
+      credential: "YtkNt/ARwHi5hXLZ",
+    },
+    {
+      urls: "turn:na.relay.metered.ca:443",
+      username: "a9771e697028c08786af0d5e",
+      credential: "YtkNt/ARwHi5hXLZ",
+    },
+    {
+      urls: "turns:na.relay.metered.ca:443?transport=tcp",
+      username: "a9771e697028c08786af0d5e",
+      credential: "YtkNt/ARwHi5hXLZ",
+    },
   ],
-  // Uncomment and replace the above with the following if using dynamic ICE servers
-  // iceServers: [
-  //   {
-  //     urls: "stun:stun.relay.metered.ca:80",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:80",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:80?transport=tcp",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turn:global.relay.metered.ca:443",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  //   {
-  //     urls: "turns:global.relay.metered.ca:443?transport=tcp",
-  //     username: "aca60fb4568ea274f8245009",
-  //     credential: "Zi/jzkiJuI2fmwLx",
-  //   },
-  // ],
 };
 
 async function fetchIceServers() {
